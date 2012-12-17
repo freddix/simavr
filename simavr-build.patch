@@ -1,0 +1,86 @@
+diff -aurN simavr-1.0.orig/Makefile.common simavr-1.0/Makefile.common
+--- simavr-1.0.orig/Makefile.common	2012-12-14 21:21:43.063266494 +0100
++++ simavr-1.0/Makefile.common	2012-12-14 21:50:24.556662838 +0100
+@@ -54,9 +54,10 @@
+ LFLAGS		= -L/opt/local/lib/
+ endif
+ else
+-AVR_ROOT 	:= /usr/lib/avr
++AVR_ROOT 	:= /usr/avr
+ AVR_INC 	:= ${AVR_ROOT}
+ AVR 		:= avr-
++AVR_CC		:= avr-gcc
+ CFLAGS 		+= -fPIC
+ endif
+ 
+@@ -117,7 +118,7 @@
+ 		${AVR_CPPFLAGS} \
+ 		$<  -c -o $@
+ else
+-	@$(CC) $(CPPFLAGS) $(CFLAGS) $(CFLAGS) -MMD \
++	@$(CC) $(CPPFLAGS) $(CFLAGS) -MMD \
+ 		${AVR_CPPFLAGS} \
+ 		$<  -c -o $@
+ 	@echo CORE $<
+diff -aurN simavr-1.0.orig/simavr/Makefile simavr-1.0/simavr/Makefile
+--- simavr-1.0.orig/simavr/Makefile	2012-12-14 21:21:43.061266590 +0100
++++ simavr-1.0/simavr/Makefile	2012-12-14 21:44:36.930666734 +0100
+@@ -57,10 +57,10 @@
+ #
+ ${OBJ}/libsimavr.so.1	:	${sim_o}
+ ifeq ($(V),1)
+-	$(CC) -shared -Wl,-soname,libsimavr.so.1 -o $@ $^
++	$(CC) $^ -lelf -shared -Wl,-soname,libsimavr.so.1 -o $@
+ else
+ 	@echo SHARED $@
+-	@$(CC) -shared -Wl,-soname,libsimavr.so.1 -o $@ $^
++	@$(CC) $^ -lelf -shared -Wl,-soname,libsimavr.so.1 -o $@
+ endif
+ 
+ ${OBJ}/libsimavr.so		: ${OBJ}/libsimavr.so.1
+@@ -84,23 +84,23 @@
+ PREFIX = ${DESTDIR}
+ 
+ install : all
+-	$(MKDIR) $(DESTDIR)/include/simavr/avr
+-	$(INSTALL) -m644 sim/*.h $(DESTDIR)/include/simavr/
+-	$(INSTALL) -m644 sim_core_*.h $(DESTDIR)/include/simavr/
+-	$(INSTALL) -m644 sim/avr/*.h $(DESTDIR)/include/simavr/avr/
+-	$(MKDIR) $(DESTDIR)/lib
+-	$(INSTALL) ${OBJ}/libsimavr.a $(DESTDIR)/lib/
+-	$(MKDIR) $(DESTDIR)/lib/pkgconfig/
++	$(MKDIR) $(DESTDIR)$(INCLDIR)/simavr/avr
++	$(INSTALL) -m644 sim/*.h $(DESTDIR)$(INCLDIR)/simavr/
++	$(INSTALL) -m644 sim_core_*.h $(DESTDIR)$(INCLDIR)/simavr/
++	$(INSTALL) -m644 sim/avr/*.h $(DESTDIR)$(INCLDIR)/simavr/avr/
++	$(MKDIR) $(DESTDIR)$(LIBDIR)
++	$(INSTALL) ${OBJ}/libsimavr.a $(DESTDIR)$(LIBDIR)
++	$(MKDIR) $(DESTDIR)$(LIBDIR)/pkgconfig
+ 	sed -e "s|PREFIX|${PREFIX}|g" -e "s|VERSION|${SIMAVR_VERSION}|g" \
+-		simavr-avr.pc >$(DESTDIR)/lib/pkgconfig/simavr-avr.pc
++		simavr-avr.pc >$(DESTDIR)$(LIBDIR)/pkgconfig/simavr-avr.pc
+ 	sed -e "s|PREFIX|${PREFIX}|g" -e "s|VERSION|${SIMAVR_VERSION}|g" \
+-		simavr.pc >$(DESTDIR)/lib/pkgconfig/simavr.pc
++		simavr.pc >$(DESTDIR)$(LIBDIR)/pkgconfig/simavr.pc
+ ifeq (${shell uname}, Linux)
+-	$(INSTALL) ${OBJ}/libsimavr.so.1 $(DESTDIR)/lib/
+-	ln -sf libsimavr.so.1 $(DESTDIR)/lib/libsimavr.so
++	$(INSTALL) ${OBJ}/libsimavr.so.1 $(DESTDIR)$(LIBDIR)
++	ln -sf libsimavr.so.1 $(DESTDIR)$(LIBDIR)/libsimavr.so
+ endif
+-	$(MKDIR) $(DESTDIR)/bin
+-	$(INSTALL) ${OBJ}/${target}.elf $(DESTDIR)/bin/simavr
++	$(MKDIR) $(DESTDIR)$(BINDIR)
++	$(INSTALL) ${OBJ}/${target}.elf $(DESTDIR)$(BINDIR)/simavr
+ 
+ # Needs 'fpm', oneline package manager. Install with 'gem install fpm'
+ # This generates 'mock' debian files, without all the policy, scripts
+@@ -147,7 +147,7 @@
+ 	for core in cores/*.c ; do \
+ 		file=$$core; global=$${core/cores\/sim_}; global=$${global/.c}; \
+ 		upper=$$(echo $$global|tr '[a-z]' '[A-Z]'); \
+-		if $(CC) -E $(CFLAGS) ${AVR_CPPFLAGS} $$file \
++		if $(AVR_CC) -E $(AVR_CFLAGS) ${AVR_CPPFLAGS} $$file \
+ 			>>$(DEBUGLOG) 2>&1 ; then \
+ 			conf+="#define CONFIG_$$upper 1\n"; \
+ 			obj=$${file/.c/.o} ; obj=$${obj/cores\/}; \
